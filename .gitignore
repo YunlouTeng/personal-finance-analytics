@@ -16,6 +16,7 @@
 *.pem
 *.p8
 connections.toml
+.plaid_items.json
 
 # ---------------------------------------------------------------------
 # Financial data

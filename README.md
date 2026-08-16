@@ -34,7 +34,14 @@ Conventions, hard rules, and the git workflow live in [CLAUDE.md](CLAUDE.md).
    ```bash
    uv venv --python 3.11 .venv
    uv pip install --python .venv/bin/python -r requirements.txt
+   python -m compileall -q .venv/lib/python3.11/site-packages/plaid
    ```
+
+   That last line is not optional housekeeping. `plaid-python` ships around
+   2,100 generated model modules and imports the whole tree, so without
+   precompiled bytecode the first import takes minutes. Precompiling makes it
+   a one-time setup cost. It takes several minutes itself, so start it and go
+   get a coffee.
 
 2. Install the Snowflake CLI as an isolated tool. It is kept out of
    `requirements.txt` on purpose; see the note in that file.
@@ -133,6 +140,14 @@ snow sql -f setup/01_infrastructure.sql -c pfin
 cd dbt_project && dbt debug
 dbt build
 
+# Plaid ingestion
+python -m ingestion link-sandbox     # create a sandbox Item, no browser needed
+python -m ingestion list-items       # show linked Items, tokens redacted
+python -m ingestion fetch            # fetch changes, print a summary
+
+# Tests
+pytest tests/ -q
+
 # Streamlit
 streamlit run streamlit_app/app.py
 
@@ -143,7 +158,8 @@ ruff check .
 ## Status
 
 - [x] Snowflake infrastructure DDL (`setup/`), deployed and verified
-- [ ] Plaid ingestion (`ingestion/`)
+- [x] Plaid API client and Item store (`ingestion/`)
+- [ ] Snowflake loader and sync orchestration
 - [ ] dbt staging, intermediate, and marts models (`dbt_project/`)
 - [ ] Streamlit dashboard (`streamlit_app/`)
 
