@@ -7,9 +7,17 @@
 # Its dependency pins conflict with current dbt-core and force a silent
 # downgrade when co-installed, so it lives in an isolated environment:
 #   uv tool install snowflake-cli
+# NOTE: plaid-python ships ~2,100 generated model modules and
+# plaid.api.plaid_api imports the whole tree. The first import compiles
+# bytecode for all of them, which takes several minutes. Precompile once
+# after install so this is a one-time setup cost rather than a per-run tax:
+#   python -m compileall -q .venv/lib/python3.11/site-packages/plaid
 dbt-core==1.12.2
 dbt-snowflake==1.12.0
 plaid-python==42.0.0
 snowflake-connector-python==4.7.2
 python-dotenv==1.2.3
 ruff==0.16.3
+
+# Development
+pytest==9.1.1
