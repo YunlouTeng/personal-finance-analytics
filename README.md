@@ -43,25 +43,62 @@ Conventions, hard rules, and the git workflow live in [CLAUDE.md](CLAUDE.md).
    uv tool install snowflake-cli
    ```
 
-3. Create `~/.snowflake/connections.toml` with a `pfin` connection. This file
-   holds real credentials and lives outside the repo:
+3. Set up key-pair authentication. Snowflake is phasing out single-factor
+   passwords for human users (MFA enforcement completes in late 2026), and
+   key-pair is the standard pattern for CLI and programmatic access. It also
+   means `connections.toml` contains no secret: the private key lives in its
+   own file outside the repo.
+
+   Generate the key pair (add a passphrase via `-passout` and drop
+   `-nocrypt` if you want the private key encrypted at rest):
+
+   ```bash
+   mkdir -p ~/.snowflake/keys
+   openssl genrsa 2048 | openssl pkcs8 -topk8 -inform PEM \
+       -out ~/.snowflake/keys/pfin_rsa_key.p8 -nocrypt
+   openssl rsa -in ~/.snowflake/keys/pfin_rsa_key.p8 -pubout \
+       -out ~/.snowflake/keys/pfin_rsa_key.pub
+   chmod 600 ~/.snowflake/keys/pfin_rsa_key.p8
+   ```
+
+   Register the public key on your Snowflake user. In a Snowsight worksheet,
+   run the following with the base64 body of the `.pub` file (everything
+   between the BEGIN and END lines, newlines removed):
+
+   ```sql
+   ALTER USER <your_username> SET RSA_PUBLIC_KEY='MII...';
+   ```
+
+   This is a one-time manual step; it is user configuration, not project
+   infrastructure, so it does not live in `setup/`.
+
+4. Create `~/.snowflake/connections.toml`. Find your account identifier in
+   Snowsight under Account -> View account details, in
+   `<orgname>-<account_name>` form:
 
    ```toml
    [pfin]
-   account   = "<your_account_identifier>"
-   user      = "<your_username>"
-   password  = "<your_password>"
-   warehouse = "PFIN_WH"
-   database  = "PERSONAL_FINANCE"
+   account          = "<orgname>-<account_name>"
+   user             = "<your_username>"
+   authenticator    = "SNOWFLAKE_JWT"
+   private_key_file = "/Users/<you>/.snowflake/keys/pfin_rsa_key.p8"
+   warehouse        = "PFIN_WH"
+   role             = "ACCOUNTADMIN"
    ```
+
+   The private key path is absolute because tilde expansion is not reliable
+   across drivers. `role` is ACCOUNTADMIN because this connection's first job
+   is running the bootstrap DDL; dbt will later get its own entry using
+   `PFIN_TRANSFORMER`. No `database` is set because `PERSONAL_FINANCE` does
+   not exist until bootstrap runs.
 
    Then restrict it and verify: `chmod 600 ~/.snowflake/connections.toml`
    and `snow connection test -c pfin`.
 
-4. Copy `.env.example` to `.env` and fill in the Plaid credentials. `.env` is
+5. Copy `.env.example` to `.env` and fill in the Plaid credentials. `.env` is
    gitignored and must stay that way.
 
-5. Build the Snowflake environment:
+6. Build the Snowflake environment:
 
    ```bash
    ./setup/bootstrap.sh
