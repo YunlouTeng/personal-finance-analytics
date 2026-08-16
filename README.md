@@ -143,7 +143,9 @@ dbt build
 # Plaid ingestion
 python -m ingestion link-sandbox     # create a sandbox Item, no browser needed
 python -m ingestion list-items       # show linked Items, tokens redacted
-python -m ingestion fetch            # fetch changes, print a summary
+python -m ingestion fetch            # fetch changes, print a summary (read only)
+python -m ingestion sync             # fetch and write to Snowflake RAW
+python -m ingestion snapshot         # land account and balance snapshots
 
 # Tests
 pytest tests/ -q
@@ -159,7 +161,7 @@ ruff check .
 
 - [x] Snowflake infrastructure DDL (`setup/`), deployed and verified
 - [x] Plaid API client and Item store (`ingestion/`)
-- [ ] Snowflake loader and sync orchestration
+- [x] Snowflake loader and sync orchestration
 - [ ] dbt staging, intermediate, and marts models (`dbt_project/`)
 - [ ] Streamlit dashboard (`streamlit_app/`)
 

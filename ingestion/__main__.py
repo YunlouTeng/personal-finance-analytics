@@ -3,6 +3,8 @@
     python -m ingestion link-sandbox      create a sandbox Item
     python -m ingestion list-items        show linked Items (tokens redacted)
     python -m ingestion fetch             fetch changes and print a summary
+    python -m ingestion sync              fetch changes and write to Snowflake
+    python -m ingestion snapshot          land account and balance snapshots
 """
 
 from __future__ import annotations
@@ -110,6 +112,37 @@ def cmd_fetch(args: argparse.Namespace) -> int:
     return 0
 
 
+
+def cmd_sync(args: argparse.Namespace) -> int:
+    from ingestion.loader import SnowflakeLoader
+    from ingestion.sync import snapshot_item, sync_item
+
+    settings = load_settings()
+    items = items_for_environment(settings.plaid_env)
+    if not items:
+        print(
+            f"No linked Items for environment {settings.plaid_env!r}.",
+            file=sys.stderr,
+        )
+        return 1
+
+    client = plaid_client.build_client(settings)
+    with SnowflakeLoader(settings.snowflake_connection) as loader:
+        for item in items:
+            print(f"\nItem {item.item_id} ({item.institution_name or 'unknown'})")
+            if args.command == "sync":
+                result = sync_item(client, loader, item)
+                print(
+                    f"  {result.pages} page(s), {result.rows}, "
+                    f"batch {result.batch_id}"
+                )
+                print(f"  cursor committed atomically with {result.total_rows} rows")
+            else:
+                wrote = snapshot_item(client, loader, item)
+                print(f"  snapshot written: {wrote}")
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(prog="ingestion", description=__doc__)
     parser.add_argument("-v", "--verbose", action="store_true")
@@ -133,6 +166,14 @@ def main(argv: list[str] | None = None) -> int:
         help="write a truncated first page to PATH as a test fixture",
     )
     fetch.set_defaults(func=cmd_fetch)
+
+    sync = sub.add_parser("sync", help="fetch changes and write to Snowflake")
+    sync.set_defaults(func=cmd_sync)
+
+    snapshot = sub.add_parser(
+        "snapshot", help="land account and balance snapshots"
+    )
+    snapshot.set_defaults(func=cmd_sync)
 
     args = parser.parse_args(argv)
     logging.basicConfig(
