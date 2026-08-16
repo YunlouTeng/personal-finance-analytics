@@ -88,22 +88,37 @@ Conventions, hard rules, and the git workflow live in [CLAUDE.md](CLAUDE.md).
    The private key path is absolute because tilde expansion is not reliable
    across drivers. `role` is ACCOUNTADMIN because this connection's first job
    is running the bootstrap DDL; dbt will later get its own entry using
-   `PFIN_TRANSFORMER`. Do not set `warehouse` or `database` yet: `PFIN_WH`
-   and `PERSONAL_FINANCE` do not exist until bootstrap runs, and the
-   connection test fails hard on a missing warehouse. Add
-   `warehouse = "PFIN_WH"` after bootstrap succeeds.
+   `PFIN_TRANSFORMER`. Note the deliberate omission of `warehouse` and
+   `database`: neither `PFIN_WH` nor `PERSONAL_FINANCE` exists until
+   bootstrap runs, and `snow connection test` fails hard on a missing
+   warehouse. Step 6 adds the warehouse once it exists.
 
    Then restrict it and verify: `chmod 600 ~/.snowflake/connections.toml`
    and `snow connection test -c pfin`.
 
-5. Copy `.env.example` to `.env` and fill in the Plaid credentials. `.env` is
-   gitignored and must stay that way.
-
-6. Build the Snowflake environment:
+5. Build the Snowflake environment. The script is idempotent, so it is safe
+   to re-run at any time:
 
    ```bash
    ./setup/bootstrap.sh
    ```
+
+   This creates the `PFIN_WH` warehouse, the `PERSONAL_FINANCE` database with
+   its five schemas, the raw landing tables, and the `PFIN_TRANSFORMER` role.
+
+6. Now that `PFIN_WH` exists, add it to `~/.snowflake/connections.toml` and
+   confirm:
+
+   ```toml
+   warehouse        = "PFIN_WH"
+   ```
+
+   ```bash
+   snow connection test -c pfin    # Warehouse should now read PFIN_WH
+   ```
+
+7. Copy `.env.example` to `.env` and fill in the Plaid credentials. `.env` is
+   gitignored and must stay that way.
 
 ## Common commands
 
@@ -127,7 +142,7 @@ ruff check .
 
 ## Status
 
-- [x] Snowflake infrastructure DDL (`setup/`)
+- [x] Snowflake infrastructure DDL (`setup/`), deployed and verified
 - [ ] Plaid ingestion (`ingestion/`)
 - [ ] dbt staging, intermediate, and marts models (`dbt_project/`)
 - [ ] Streamlit dashboard (`streamlit_app/`)
