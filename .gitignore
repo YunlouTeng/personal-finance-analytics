@@ -1,0 +1,55 @@
+# =====================================================================
+# Personal Finance Analytics Platform
+# =====================================================================
+# This project handles production Plaid data: real institution names,
+# real balances, real merchant descriptions. Nothing derived from a live
+# account belongs in version control. When in doubt, ignore it.
+# =====================================================================
+
+# ---------------------------------------------------------------------
+# Secrets and credentials
+# ---------------------------------------------------------------------
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+*.pem
+*.p8
+connections.toml
+
+# ---------------------------------------------------------------------
+# Financial data
+# ---------------------------------------------------------------------
+# Raw Plaid extracts and anything exported from Snowflake. The negation
+# below keeps Plaid Sandbox fixtures tracked, since tests need them.
+data/raw/
+data/**/*.json
+data/**/*.csv
+plaid_*.json
+transactions_*.csv
+!tests/fixtures/**
+
+# ---------------------------------------------------------------------
+# Python
+# ---------------------------------------------------------------------
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.ruff_cache/
+.pytest_cache/
+*.egg-info/
+
+# ---------------------------------------------------------------------
+# dbt
+# ---------------------------------------------------------------------
+dbt_packages/
+target/
+logs/
+.user.yml
+
+# ---------------------------------------------------------------------
+# Logs and OS noise
+# ---------------------------------------------------------------------
+*.log
+.DS_Store
