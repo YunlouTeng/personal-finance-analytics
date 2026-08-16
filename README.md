@@ -82,15 +82,16 @@ Conventions, hard rules, and the git workflow live in [CLAUDE.md](CLAUDE.md).
    user             = "<your_username>"
    authenticator    = "SNOWFLAKE_JWT"
    private_key_file = "/Users/<you>/.snowflake/keys/pfin_rsa_key.p8"
-   warehouse        = "PFIN_WH"
    role             = "ACCOUNTADMIN"
    ```
 
    The private key path is absolute because tilde expansion is not reliable
    across drivers. `role` is ACCOUNTADMIN because this connection's first job
    is running the bootstrap DDL; dbt will later get its own entry using
-   `PFIN_TRANSFORMER`. No `database` is set because `PERSONAL_FINANCE` does
-   not exist until bootstrap runs.
+   `PFIN_TRANSFORMER`. Do not set `warehouse` or `database` yet: `PFIN_WH`
+   and `PERSONAL_FINANCE` do not exist until bootstrap runs, and the
+   connection test fails hard on a missing warehouse. Add
+   `warehouse = "PFIN_WH"` after bootstrap succeeds.
 
    Then restrict it and verify: `chmod 600 ~/.snowflake/connections.toml`
    and `snow connection test -c pfin`.
