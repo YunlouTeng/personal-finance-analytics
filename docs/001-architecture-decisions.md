@@ -35,21 +35,30 @@ re-run safely. Snowflake trial accounts expire; the environment must be
 redeployable from a clean account in one command, which is also why no
 objects are ever created ad hoc in Snowsight.
 
-## Open questions (deferred to feature/snowflake-infra)
+## Resolved on feature/snowflake-infra (2026-08-16)
 
-1. `RAW.PLAID_TRANSACTIONS` has no sync-disposition column. The
-   `/transactions/sync` endpoint returns `added`, `modified`, and `removed`
-   buckets; without a `_CHANGE_TYPE` marker, staging cannot distinguish an
-   update from an insert or replay a removal. Likely fix: add the column
-   before first real load.
-2. No `INTERMEDIATE` schema exists even though the dbt design has an
-   intermediate layer. Decide whether dbt creates it via its
-   `CREATE SCHEMA` grant or it moves into the setup DDL.
-3. The `GRANT ROLE PFIN_TRANSFORMER TO USER ...` statement is commented out
-   (`setup/01_infrastructure.sql:146`), leaving the role assigned to nobody.
-   Decide how to parameterize it so the rebuild stays one command with no
-   manual Snowsight step.
-4. Snowflake does not enforce primary key or unique constraints, so the
-   ingestion idempotency guarantee must live in the loader as a `MERGE`
-   (on `ITEM_ID` for `SYNC_STATE`, on `transaction_id` downstream), not in
-   the schema.
+All four open questions were settled before the DDL was first executed, so
+they became edits rather than migrations.
+
+1. **Sync disposition: resolved.** `RAW.PLAID_TRANSACTIONS` now carries
+   `_CHANGE_TYPE` (`added` / `modified` / `removed`), plus `_ITEM_ID` and
+   `_BATCH_ID` for provenance. See `003-raw-layer-design.md` for the full
+   reasoning. `_ITEM_ID` and `_BATCH_ID` were added to `PLAID_ACCOUNTS` and
+   `PLAID_BALANCES` too, since multi-institution support needs them
+   everywhere and retrofitting after real data lands is painful.
+2. **INTERMEDIATE schema: created in the setup DDL.** dbt could have made it
+   via its `CREATE SCHEMA` grant, but declaring it here keeps the entire
+   environment described by one script, which is the whole point of a
+   reproducible setup.
+3. **Role grant: hardcoded to the operator's username.** A username is not a
+   credential, and inlining it removes the last manual Snowsight step, so
+   `bootstrap.sh` genuinely rebuilds everything in one command. Change it
+   when deploying as a different user.
+4. **Idempotency: confirmed as a loader responsibility.** `SYNC_STATE` now
+   declares `PRIMARY KEY (ITEM_ID)`, but Snowflake accepts constraints
+   without enforcing them, so this documents intent only. The real guarantee
+   is a `MERGE` on `ITEM_ID`, and on `transaction_id` downstream.
+
+## Open questions
+
+None currently. Next decisions land with `feature/plaid-ingestion`.
