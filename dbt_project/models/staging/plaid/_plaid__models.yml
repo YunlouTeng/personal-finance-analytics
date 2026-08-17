@@ -1,0 +1,47 @@
+version: 2
+
+models:
+  - name: stg_plaid__transactions
+    description: >
+      Current state of every transaction, one row per transaction_id,
+      reduced from the append-only event log by latest-event-wins. Removed
+      transactions remain as rows with is_removed = true and null typed
+      columns; downstream models must filter on is_removed. Amount keeps
+      the Plaid sign convention, positive = outflow.
+    columns:
+      - name: transaction_id
+        description: Plaid transaction id, stable across updates.
+        tests: [unique, not_null]
+      - name: account_id
+        description: Null only on removed rows.
+      - name: item_id
+        description: Plaid Item (institution link) the event came from.
+        tests: [not_null]
+      - name: amount
+        description: NUMBER(18,2), Plaid sign convention.
+      - name: is_removed
+        description: Soft delete flag from _change_type = removed.
+        tests: [not_null]
+
+  - name: stg_plaid__accounts
+    description: Latest known metadata per account.
+    columns:
+      - name: account_id
+        tests: [unique, not_null]
+      - name: item_id
+        tests: [not_null]
+      - name: account_type
+        tests:
+          - accepted_values:
+              values: [depository, credit, loan, investment, other]
+
+  - name: stg_plaid__balances
+    description: >
+      Balance snapshot history, one row per account per ingestion snapshot.
+      Not deduplicated by design: this is the time series net worth is
+      derived from.
+    columns:
+      - name: account_id
+        tests: [not_null]
+      - name: snapshot_at
+        tests: [not_null]

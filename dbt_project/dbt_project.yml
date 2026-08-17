@@ -1,0 +1,24 @@
+name: personal_finance
+version: "1.0.0"
+config-version: 2
+
+profile: personal_finance
+
+model-paths: ["models"]
+macro-paths: ["macros"]
+test-paths: ["tests"]
+
+target-path: target
+clean-targets: [target, dbt_packages]
+
+models:
+  personal_finance:
+    staging:
+      +materialized: view
+      +schema: staging
+    intermediate:
+      +materialized: view
+      +schema: intermediate
+    marts:
+      +materialized: table
+      +schema: marts

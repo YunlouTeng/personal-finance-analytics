@@ -124,7 +124,9 @@ Conventions, hard rules, and the git workflow live in [CLAUDE.md](CLAUDE.md).
    snow connection test -c pfin    # Warehouse should now read PFIN_WH
    ```
 
-7. Copy `.env.example` to `.env` and fill in the Plaid credentials. `.env` is
+7. Copy `.env.example` to `.env` and fill it in: Plaid credentials plus the
+   Snowflake account identifier and username (dbt's `profiles.yml` reads
+   those through `env_var()` so they never enter the repo). `.env` is
    gitignored and must stay that way.
 
 ## Common commands
@@ -136,9 +138,11 @@ The venv must be active (`source .venv/bin/activate`) for `dbt` commands.
 snow connection test -c pfin
 snow sql -f setup/01_infrastructure.sql -c pfin
 
-# dbt
+# dbt (profiles.yml needs the env vars from .env)
+set -a && source .env && set +a
 cd dbt_project && dbt debug
-dbt build
+dbt build          # run models + tests
+dbt source freshness
 
 # Plaid ingestion
 python -m ingestion link-sandbox     # create a sandbox Item, no browser needed
@@ -162,7 +166,8 @@ ruff check .
 - [x] Snowflake infrastructure DDL (`setup/`), deployed and verified
 - [x] Plaid API client and Item store (`ingestion/`)
 - [x] Snowflake loader and sync orchestration
-- [ ] dbt staging, intermediate, and marts models (`dbt_project/`)
+- [x] dbt staging layer over RAW (`dbt_project/`)
+- [ ] dbt intermediate and marts models
 - [ ] Streamlit dashboard (`streamlit_app/`)
 
 Design decisions are recorded in [docs/](docs/).

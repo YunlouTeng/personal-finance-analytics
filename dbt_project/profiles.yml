@@ -1,0 +1,42 @@
+# Connection profiles for dbt. Safe to commit: neither target contains a
+# secret, and the account identifier and username come from the environment
+# so they never enter the repo.
+#
+# Two targets, one project:
+#
+#   snowflake (default)  dbt Projects on Snowflake. The project runs inside
+#                        the platform, where the session already knows who
+#                        you are, so no account, user, or auth fields.
+#                        Privileges come from the role below, further gated
+#                        by the caller's own grants.
+#
+#   local                Fallback for running dbt Core on this machine:
+#                        dbt build --target local
+#                        Key-pair JWT, identity from .env via env_var.
+#                        The '' defaults matter: without them, rendering
+#                        this file inside Snowflake (where the env vars do
+#                        not exist) would fail at parse time.
+#
+# Both targets run as PFIN_TRANSFORMER: read on RAW, write on STAGING,
+# INTERMEDIATE, and MARTS, and nothing else.
+personal_finance:
+  target: snowflake
+  outputs:
+    snowflake:
+      type: snowflake
+      database: PERSONAL_FINANCE
+      warehouse: PFIN_WH
+      role: PFIN_TRANSFORMER
+      schema: staging
+      threads: 4
+    local:
+      type: snowflake
+      account: "{{ env_var('SNOWFLAKE_ACCOUNT', '') }}"
+      user: "{{ env_var('SNOWFLAKE_USER', '') }}"
+      role: PFIN_TRANSFORMER
+      authenticator: snowflake_jwt
+      private_key_path: "{{ env_var('SNOWFLAKE_PRIVATE_KEY_PATH', '~/.snowflake/keys/pfin_rsa_key.p8') }}"
+      database: PERSONAL_FINANCE
+      warehouse: PFIN_WH
+      schema: staging
+      threads: 4

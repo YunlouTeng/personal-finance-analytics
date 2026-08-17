@@ -1,0 +1,40 @@
+version: 2
+
+sources:
+  - name: plaid
+    description: >
+      Raw Plaid API payloads landed by the Python ingestion pipeline.
+      Append-only; every row carries provenance metadata. Never modified
+      by dbt.
+    database: PERSONAL_FINANCE
+    schema: RAW
+    loaded_at_field: _LOADED_AT
+    freshness:
+      warn_after: {count: 7, period: day}
+    tables:
+      - name: plaid_transactions
+        description: >
+          Change events from /transactions/sync. One row per event, not per
+          transaction: the same transaction_id appears again on every
+          modification and removal. Removed events carry only a
+          transaction_id in PAYLOAD.
+        columns:
+          - name: _change_type
+            description: Which sync bucket produced the row.
+            tests:
+              - not_null
+              - accepted_values:
+                  values: ["added", "modified", "removed"]
+          - name: _item_id
+            tests: [not_null]
+          - name: _batch_id
+            tests: [not_null]
+      - name: plaid_accounts
+        description: Account metadata snapshots from /accounts/get.
+      - name: plaid_balances
+        description: Point-in-time balance snapshots from /accounts/balance/get.
+      - name: sync_state
+        description: Last successful sync cursor per Plaid Item.
+        columns:
+          - name: item_id
+            tests: [not_null, unique]
